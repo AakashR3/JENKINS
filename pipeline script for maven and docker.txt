@@ -1,0 +1,34 @@
+node{
+    
+    def buildNumber = BUILD_NUMBER
+    stage("Git clone"){
+        
+        git url:"https://github.com/Aakashk3/Maven-code.git",branch: "main"
+    }
+    
+    stage("Maven clean package"){
+        def mavenHome= tool name: "Maven",type: "maven"
+         sh "${mavenHome}/bin/mvn clean package"
+    
+    }
+    
+    
+    stage("Build Docker Image"){
+        sh "docker build -t aakashk33/new-app:${buildNumber} ."
+    }
+    
+    stage("Docker Login And Push"){
+        withCredentials([string(credentialsId: 'DockerHub', variable: 'DockerHub')]) {
+            sh "docker login -u aakashk33 -p ${DockerHub}"   
+         }
+       
+        sh "docker push aakashk33/new-app:${buildNumber}"
+    }
+    
+    sshagent(['Docker_Dev_Server_SSHS']) {
+      sh "ssh -o strictHostKeyChecking=no ubuntu@3.111.213.199 docker rm -f newappcontainer || true"
+
+        
+        sh "ssh -o strictHostKeyChecking=no ubuntu@3.111.213.199 docker run -d -p 443:80 --name newappcontainer aakashk33/new-app:${buildNumber}"
+    }
+}
